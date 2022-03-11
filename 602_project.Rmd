@@ -1,0 +1,221 @@
+---
+title: "Performance analysis of Students"
+author: "Team-8"
+date: "15/10/2021"
+output: 
+  pdf_document: 
+    latex_engine: xelatex
+
+header-includes:
+- \usepackage[fontsize=14pt]{scrextend}
+  \usepackage{fvextra}
+  \DefineVerbatimEnvironment{Highlighting}{Verbatim}{breaklines,commandchars=\\\{\}}
+
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+**Team Members**\
+1. Ketan Bassi (30146366)\
+2. Nanditha Sriram(30149248)\
+3. Shubham Bansal(30153948)\
+4. Oham Ugochukwu(30160663)\
+
+
+**Motivation:**\
+Earning a good grade is not only a measure of subject matter knowledge or intelligence. Instead, it's a composite of knowledge, skills, and personality traits.\ 
+For example, a student with a good work ethic and discipline could help their grades because they turn in homework assignments on time and have good class attendance. Similarly, a student who is driven would be willing to do additional research for assignments or to seek out learning resources if they were struggling.\ 
+Because grades are a composite measurement of student performance, they can be a better predictor of success than other narrow measures.\
+
+The aim of the project is to analyze the performance of student throughout their academic life and gauge if and how past performance affects future performance.\
+
+
+**Data Collection**\
+The data set we have is in CSV format. It has 15 columns and 215 rows. The data set has columns like Gender, it contains scores from Secondary, higher secondary, degree and MBA along with the specialization of higher secondary, degree and MBA. The data also consists of employment test percentage as well salary of the placed students.\
+The data is pretty clean so we do not need to do any data wrangling on the data set.\
+```{r}
+data =  read.csv("C:\\Users\\ketan\\Downloads\\project.csv")
+head(data)
+str(data)
+```
+
+**Question 1 (Hypothesis Testing)**  **(a)** $H_{0}$: MBA percentage does not affect their chance of placement\
+$H_{a}$: MBA percentage  affects their chance of placement\
+
+First we create a Box plot for placed and not placed students along with their mba percentage.\
+
+```{r}
+boxplot(data$mba_p~data$status,data = data,main= "Box plot for MBA percentage of placed and not placed students")
+```
+**Analysis** The average MBA percentage for the placed students is higher than the students that are not placed.\
+
+```{r}
+t.test(data$mba_p~data$status,data = data,alternative= "two.sided")
+```
+Since the p-value is greater than alpha we fail to reject the null hypothesis. From this we can conclude that the percentage of the students during their MBA does not affect their placements.\
+
+
+**(b)**$H_{0}$:Employability test scores does not affect their chance of placement\
+$H_{a}$:Employability test scores affects their chance of placement\
+```{r}
+boxplot(data$etest_p~data$status,data = data, main="Box plot for Employability test percentage of placed and not placed students")
+```
+**Analysis** The average Employability test percentage for the placed students is higher than the students that are not placed.\
+
+
+
+```{r}
+t.test(data$etest_p~data$status,data = data,alternative= "two.sided")
+```
+Since the P-value is very close to the alpha(0.05), so we do not have enough evidence to reject or accept the null hypothesis.\
+
+**Question 2** **(a)** Performing simple linear regression to estimate higher secondary score based on secondary score\
+```{r}
+plot(data$hsc_p~data$ssc_p)
+reg = lm(data$hsc_p~data$ssc_p,data = data)
+abline(reg)
+```
+
+
+```{r , fig.width=14, fig.height=10}
+summary(reg)
+par(mfrow = c(2, 2))
+plot(reg)
+```
+
+The overall F-test(75.46 on 1 and 213 DF,  p-value: 9.902e-16) and the individual t-test(P value for slope is 2.08e-13) all suggest that the model is highly statistically significant. Also looking at the model it can be observed that the model can be used to predict the higher secondary percentage using the secondary percentage.\
+
+Regression Equation:\
+$hsc_p = 31.68583 + 0.51479*ssc_p$
+
+
+After doing that we train and test our model\
+```{r}
+set.seed(2021)
+n = nrow(data)
+index =  sample(1:n,round(0.8*n),replace = FALSE)
+
+train80 = data[index, ] # 80% of the data to build a model 
+test20 = data[-index, ] #20% of the data to test the model
+
+train80_fit = lm(hsc_p~ssc_p,data=train80)
+
+summary(train80_fit)
+```
+
+Model diagnostic plots for train80_fit:
+```{r , fig.width=14, fig.height=10}
+par(mfrow = c(2, 2))
+plot(train80_fit)
+```
+
+```{r}
+pred20 = predict.lm(train80_fit,newdata = test20)
+plot(hsc_p~ssc_p,data = test20,col='red',pch=19, main= "Actual vs Predicted")
+points(test20$ssc_p,pred20,col='blue',pch=22)
+legend("topright",legend=c("Actual","Predicted"),col=c("red","blue"),
+       pch=c(19,22),cex = 0.8)
+```
+Now we compute MAE,MAPE,MSE and 95% confidence interval.
+```{r}
+mae = mean(abs(test20$hsc_p - pred20))
+mape = mean(abs((test20$hsc_p-pred20)/test20$hsc_p))
+mse =mean((test20$hsc_p- pred20)^2)
+
+cat("MAE=",mae,",","MAPE=",mape,",","MSE=",mse)
+```
+
+
+```{r}
+pred20pred =predict.lm(train80_fit,newdata = test20,level=0.95,interval = "prediction")
+
+matplot(test20$ssc_p,pred20pred,pch=c(22,2,6),col = c("blue","green","brown"), main="95% Prediction Intervals",xlab = "SSC Percentage",ylab = "HSC Percentage")
+points(test20$ssc_p,test20$hsc_p,col="red",pch=19)
+legend("bottomleft",legend=c("Predicted","Lowlimit","Uplimit","Actual"),
+       col=c("blue","green","brown","red"),pch=c(22,2,6,19),cex=0.8)
+```
+All the actual values lie between the 95% prediction intervals.
+
+
+**(b)** Finding out how each percentage, contributes to the MBA percentage. \
+**(i)** Secondary Percentage vs MBA Percentage\
+```{r}
+plot(data$mba_p~data$ssc_p)
+reg = lm(data$mba_p~data$ssc_p,data = data)
+abline(reg)
+```
+
+
+```{r , fig.width=14, fig.height=10}
+summary(reg)
+par(mfrow = c(2, 2))
+plot(reg)
+```
+
+**(ii)** Higher Secondary Percentage vs MBA Percentage\
+```{r}
+plot(data$mba_p~data$hsc_p)
+reg = lm(data$mba_p~data$hsc_p,data = data)
+abline(reg)
+```
+
+```{r , fig.width=14, fig.height=10}
+summary(reg)
+par(mfrow = c(2, 2))
+plot(reg)
+```
+
+**(iii)** Degree Percentage vs MBA Percentage\
+```{r}
+plot(data$mba_p~data$degree_p)
+reg = lm(data$mba_p~data$degree_p,data = data)
+abline(reg)
+```
+
+```{r , fig.width=14, fig.height=10}
+summary(reg)
+par(mfrow = c(2, 2))
+plot(reg)
+```
+
+**(iv)** Checking the relationship between MBA Percentage of placed students and their salaries.\
+```{r}
+dat1 = data[data$status == "Placed", ]
+head(dat1)
+```
+
+```{r}
+plot(dat1$salary~dat1$mba_p,data=dat1)
+```
+From the plot we can see that there is no correlation between MBA percentage of the students and their salaries.\
+
+
+Checking the correlation value for the same\
+```{r}
+cor(dat1$salary,dat1$mba_p)
+```
+
+
+**Question 3** $H_{0}$: There is no association between gender and type of specialization in higher secondary education
+$H_{a}$: There is association between gender and type of specialization in higher secondary education
+```{r}
+new1 = aggregate(data$hsc_p, by=list(Gender=data$gender,Specialization=data$hsc_s), FUN=mean)
+new1
+```
+
+```{r}
+observed_table = matrix(c(63.70000,69.65700,63.22267,61.600,68.63863,63.57131),nrow = 2,ncol = 3,byrow = T)
+rownames(observed_table) =c('Female','Male')
+colnames(observed_table) =c('Arts','Commerce','Science')
+observed_table
+
+res = chisq.test(observed_table)
+res
+
+```
+Since the P-value is greater than alpha, we fail to reject the null hypothesis and conclude that there is no signinficant relationship between gender and specializtion in higher secondary education.\
+```{r}
+res$residuals
+```
+
