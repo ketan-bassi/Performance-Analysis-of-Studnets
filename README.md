@@ -1,4 +1,4 @@
-# Performance-Analysis-of-Studnets
+# Performance-Analysis-of-Students
 
 # Motivation:
 
